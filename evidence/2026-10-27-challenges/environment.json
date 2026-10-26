@@ -1,0 +1,8 @@
+{
+  "processor": "13th Gen Intel(R) Core(TM) i7-13700KF",
+  "physical_cores": 16,
+  "logical_processors": 24,
+  "physical_memory_bytes": 102823448576,
+  "measurement_environment": "Windows shared workstation; no exclusive CPU isolation or background-load control",
+  "source_code_commit": "cd15d32"
+}
