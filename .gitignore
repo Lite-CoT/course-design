@@ -1,0 +1,10 @@
+work/
+outputs/
+__pycache__/
+*.pyc
+*.spec
+!build_app.spec
+!build_app.spec
+*.vault
+app.lock
+~$*
