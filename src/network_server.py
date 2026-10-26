@@ -99,14 +99,16 @@ class VotingServer(ThreadingHTTPServer):
     daemon_threads = True
     request_queue_size = 64
 
-    def get_request(self):
-        sock, address = super().get_request()
-        sock.settimeout(10)
+    def process_request_thread(self, request, client_address):
+        # Handshake in the worker, not get_request(): a connected peer that
+        # never sends ClientHello must not block the listener's accept loop.
+        request.settimeout(10)
         try:
-            return self.tls.wrap_socket(sock, server_side=True), address
-        except Exception:
-            sock.close()
-            raise
+            secured = self.tls.wrap_socket(request, server_side=True)
+        except OSError:
+            request.close()
+            return
+        super().process_request_thread(secured, client_address)
 
 
 def make_server(root, host='0.0.0.0', port=8443):
