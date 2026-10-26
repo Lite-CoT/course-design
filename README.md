@@ -37,7 +37,29 @@ py -3.12 -m venv .venv
 | `src/app_ui.py`、`ui_smoke.py` | 桌面界面、后台任务和界面集成测试 |
 | `reports/` | 三份分别侧重 A/B/C 模块的 Word 报告 |
 | `docs/首次审查.md` | 任务书及模板对照、修改前发现的问题 |
+| `docs/验收记录.md` | 修订后的完成情况、格式复核、测试与待完成环节 |
+| `docs/现场验收.md` | 随机输入、失败案例、现场小改与个人记录步骤 |
 | `AI使用声明.txt` | 辅助范围、可追溯记录和个人复核填写区 |
+
+工程问题回归测试：
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+本轮完整结果与正常界面截图在 `evidence/2026-10-27/`；29项核心实验之外的9项回归覆盖公开包泄漏、损坏输入、嵌套额外文件及解密端独立计时。
+
+## Windows 打包
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-build.txt
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm build_app.spec
+.\dist\MiPiaoLab.exe
+```
+
+仅在 Windows 上构建 Windows 程序。可执行文件位于 `dist/`，依赖和临时构建目录不提交到 Git。本轮已对生成的程序执行 `--experiments` 和 `--ui-smoke`，证据及EXE哈希在 `evidence/2026-10-27/packaged/`；发布或重新构建后同样复测。本轮验证环境为 Windows 11 x64。
+
+打包配置排除 PATH 中可能不兼容的第三方 ICU，使用 Windows 提供的接口，并收集 GMP 的原生依赖和版本元数据。只有命令行实验通过不足以说明 Qt 界面可启动。
 
 投票目录中的 `public/` 是配置、加密选票与签名清单；`private/trustee.vault` 是口令保护的私钥材料。不要将真实投票目录、口令或保管库提交到 Git。导出公开包后，解压得到包含 `public/` 的根目录，可交给无私钥计票端。
 
@@ -54,3 +76,7 @@ git log --reverse --oneline 891daec..HEAD
 ```
 
 现场随机数据、本人解释与现场小改需要实际验收，仓库内自动测试不能替代这些环节。
+
+## 报告修订复现
+
+`tools/revise_reports.py --role A`（也可选B/C）使用 `python-docx` 和 `Pillow`，从Git基线 `891daec`、本轮证据及角色修订内容重新生成指定报告。该脚本用于复现本次修订，会覆盖相应Word文件；填写个人信息后应在Word中继续编辑，或先把个人修改保存为Git提交。每次再修改报告都应重新用Word导出PDF并检查全部页面。最终三份报告各10页，版式与数据核对结果见 `evidence/2026-10-27/report-review.json`。
