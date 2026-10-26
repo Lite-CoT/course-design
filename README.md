@@ -1,82 +1,111 @@
-# 基于同态加密的隐私保护投票系统
+# 基于同态加密的局域网电子投票系统
 
-专业课程设计第一题。Python/Qt 桌面程序使用 Paillier 加密单选独热向量，公开计票端只做密文乘法，投票关闭后由独立进程核对完整汇总并解密总票数。支持 2–8 个选项、1–10000 个名单 ID，以及重复投票、ID、签名清单和文件删改校验。
+客户端输入服务器 **IP＋端口**，在本端将选择随机加密后提交。服务器只有Paillier公钥，以密文乘法统计各选项总票；关闭后，独立保管端复核完整汇总并解密、签署总票。服务器公布签名结果，客户端验证后显示。
 
-## 安装和启动
+支持局域网多台电脑，也可在本机打开多个客户端窗口连接同一个端口。默认启动联网客户端；原单机界面通过 --local-demo 保留为算法实验工具。原单机阶段的整体完成判断已在[架构修正](docs/联网架构.md)中纠正。
 
-在 Windows 10/11、Python 3.12 下，从仓库根目录运行 PowerShell：
+## 安装
 
-```powershell
+本轮验证Windows 11 x64、Python 3.12，在仓库根目录PowerShell执行：
+
+~~~powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+~~~
+
+使用本机构建的EXE时，以下命令中的“.\.venv\Scripts\python.exe src/main.py”可整体替换为“.\dist\MiPiaoLab.exe”。
+
+## 1. 初始化并分发目录
+
+在组织者/保管者电脑运行一次，交互输入保管口令；新轮次使用新目录：
+
+~~~powershell
+.\.venv\Scripts\python.exe src/main.py init --out network-data/demo --title "班级方案投票" --options "同意,反对,弃权" --voters 8
+~~~
+
+| 生成目录 | 交给谁 | 内容 |
+| --- | --- | --- |
+| network-data/demo/server/ | 服务器电脑 | 公钥配置、密文数据库、TLS及登记签名密钥；无Paillier私钥 |
+| network-data/demo/trustee/ | 独立保管者 | 可信配置、口令保护的Paillier私钥和结果签名密钥、批准记录 |
+| organizer/admin.ticket.json | 管理员 | 关闭投票、导出汇总和发布签名结果的凭证 |
+| organizer/voters/V0001.ticket.json 等 | 分别交对应投票人 | 绑定ID的独立票码、服务器证书指纹和配置摘要 |
+
+后两行相对于初始化输出目录。实际分机部署时，**只复制server目录到服务器**，保管者保留trustee目录。不要把保管口令输入服务器或投票客户端。每人只拿自己的凭证。凭证和运行数据已列入Git忽略规则。
+
+## 2. 启动服务器
+
+~~~powershell
+.\.venv\Scripts\python.exe src/main.py serve --data network-data/demo/server --host 0.0.0.0 --port 8443
+~~~
+
+保持此终端运行，Ctrl+C停止。0.0.0.0表示监听本机各IPv4接口，不是客户端应填写的地址。
+
+- 本机多端：各窗口填写127.0.0.1和8443。
+- 局域网：服务器运行ipconfig查看当前网卡IPv4地址，其他电脑填写该地址和相同端口。Windows防火墙需要允许该程序或所选TCP端口在当前网络接收连接；校园网访客隔离可能阻止设备互访。
+- 使用HTTPS。客户端在发送票码和选票前核对凭证中的证书指纹，通过组织者分发的凭证建立信任，无需浏览器或导入系统证书。
+
+## 3. 多端投票
+
+~~~powershell
 .\.venv\Scripts\python.exe src/main.py
-```
+~~~
 
-不必激活环境，不必更改 PowerShell 执行策略。安装依赖需要联网；正常投票和测试不访问网络。私钥保管口令至少 8 个字符，创建页会在所选目录下新建投票子目录。
+各端填写IP、端口，导入本人的Vxxxx.ticket.json，点击“连接服务器”，选择一个选项并点击“在本端加密并提交选票”。回执会验证服务器签名与本端密文摘要。
 
-## 复测
+本机演示时重复启动客户端，分别导入不同凭证。服务器在SQLite事务中检查凭证绑定ID和重复投票；同一ID同时提交只接收一次。连接中断后先刷新状态与回执，避免将已接收但响应丢失的选票误判为未投。
 
-```powershell
-# 核心用例及 10 人三次性能实验
-.\.venv\Scripts\python.exe src/main.py --experiments outputs/quick --quick
-# 10、100、1000 人，各三次；结果和原始重复数据写入指定目录
-.\.venv\Scripts\python.exe src/main.py --experiments outputs/full
-# 实际 Qt 控件点击、后台线程、解密子进程和审计演示
-.\.venv\Scripts\python.exe src/main.py --ui-smoke outputs/ui-run-1
-```
+支持2–8个选项中的单选、1–10000个名单ID。改变人数或选项数量时初始化新轮次。
 
-界面测试每次使用新的输出目录，以免覆盖示例投票。实验输入是合成选票；固定种子只用于生成预期明文，Paillier 加密仍使用系统随机数。性能数据计量加密、密文汇总和解密原语，不包含文件读写、签名、口令派生和界面耗时。
+## 4. 关闭、解密总票并发布
 
-## 文件和角色
+管理员也打开客户端，导入admin.ticket.json后会出现管理员按钮：
 
-| 位置 | 用途 |
-| --- | --- |
-| `src/crypto_service.py` | A：独热编码、Paillier、加密密钥保管库 |
-| `src/tally_service.py` | B：公开汇总、完整请求复算、受控解密 |
-| `src/audit_service.py`、`election_service.py` | C：名单、状态、签名清单和文件审计 |
-| `src/app_ui.py`、`ui_smoke.py` | 桌面界面、后台任务和界面集成测试 |
-| `reports/` | 三份分别侧重 A/B/C 模块的 Word 报告 |
-| `docs/首次审查.md` | 任务书及模板对照、修改前发现的问题 |
-| `docs/验收记录.md` | 修订后的完成情况、格式复核、测试与待完成环节 |
-| `docs/现场验收.md` | 随机输入、失败案例、现场小改与个人记录步骤 |
-| `AI使用声明.txt` | 辅助范围、可追溯记录和个人复核填写区 |
+1. 所有人提交后，点击“关闭投票”，再“导出密文汇总”，保存为密文汇总.json。
+2. 将公开汇总文件交给独立保管者，在保管者电脑运行：
 
-工程问题回归测试：
+~~~powershell
+.\.venv\Scripts\python.exe src/main.py decrypt --data network-data/demo/trustee --bundle "密文汇总.json" --out "签名总票.json"
+~~~
 
-```powershell
+3. 保管者交互输入口令。程序核验可信配置、签名清单、选票集合与密文乘积，只解密完整汇总，输出签名总票。
+4. 管理员拿回签名总票.json，点击“发布签名结果”。各端刷新后显示已验证的总票。
+
+服务器没有接收Paillier私钥、保管口令或单票明文的接口。同一保管目录只批准一个确定的关闭汇总；相同汇总再次处理返回原结果，不再批准其他集合。保管端的approved-result.json应一并备份。
+
+## 复测与证据
+
+~~~powershell
+# 18项联网测试＋9项既有工程回归
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
-```
+# 服务器＋6个独立客户端进程＋离线保管进程；每次使用新的work目录
+.\.venv\Scripts\python.exe tools/verify_network.py --work work/check-1 --evidence outputs/network
+# 两个真实Qt窗口通过TLS端口完成6次控件投票
+.\.venv\Scripts\python.exe src/main.py --network-ui-smoke outputs/gui-check-1
+# 原有密码学性质和边界实验
+.\.venv\Scripts\python.exe src/main.py --experiments outputs/crypto --quick
+~~~
 
-本轮完整结果与正常界面截图在 `evidence/2026-10-27/`；29项核心实验之外的9项回归覆盖公开包泄漏、损坏输入、嵌套额外文件及解密端独立计时。
+联网原始证据位于evidence/2026-10-27-network/，包含进程数、实际计时、签名结果、截图与源码哈希。自动验收在同一电脑通过真实TLS连接完成；跨物理电脑的连通性按[现场步骤](docs/现场验收.md)复核。历史单机证据保留于evidence/2026-10-27/，不混作联网验收。
 
-## Windows 打包
+## Windows打包
 
-```powershell
+~~~powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-build.txt
 .\.venv\Scripts\python.exe -m PyInstaller --noconfirm build_app.spec
-.\dist\MiPiaoLab.exe
-```
+.\.venv\Scripts\python.exe tools/verify_network.py --exe dist/MiPiaoLab.exe --work work/exe-check-1 --evidence outputs/exe-network
+.\dist\MiPiaoLab.exe --network-ui-smoke outputs/exe-gui-check-1
+~~~
 
-仅在 Windows 上构建 Windows 程序。可执行文件位于 `dist/`，依赖和临时构建目录不提交到 Git。本轮已对生成的程序执行 `--experiments` 和 `--ui-smoke`，证据及EXE哈希在 `evidence/2026-10-27/packaged/`；发布或重新构建后同样复测。本轮验证环境为 Windows 11 x64。
+EXE支持相同的init、serve、decrypt命令和默认客户端界面。保留控制台用于服务器状态和口令输入；票码从凭证文件加载，口令默认交互读取。--password-stdin供自动测试使用，口令不会作为命令行参数或网络字段传递。
 
-打包配置排除 PATH 中可能不兼容的第三方 ICU，使用 Windows 提供的接口，并收集 GMP 的原生依赖和版本元数据。只有命令行实验通过不足以说明 Qt 界面可启动。
+## 模块与边界
 
-投票目录中的 `public/` 是配置、加密选票与签名清单；`private/trustee.vault` 是口令保护的私钥材料。不要将真实投票目录、口令或保管库提交到 Git。导出公开包后，解压得到包含 `public/` 的根目录，可交给无私钥计票端。
+| 角色 | 主要模块 |
+| --- | --- |
+| A：本端加密、初始化与密钥分离 | crypto_service.py、network_setup.py、network_client.py |
+| B：完整汇总、受控解密和结果签名 | network_protocol.py、network_trustee.py |
+| C：网络接口、事务登记与可视化 | network_store.py、network_server.py、network_ui.py、network_cli.py |
 
-## 使用边界
+保护目标是个人选择不被无私钥的服务器直接解密；ID、时间等元数据仍可见。凭证由组织者分发，丢失或转交可能导致冒用。当前没有独热零知识证明、门限解密、独立透明日志及生产级抗拒绝服务措施。一次批准限制不能单独证明恶意服务器没有重签删票集合，仍需独立回执或见证核对；完整私钥持有者可另行解密单票，小群体总票也可能暴露选择。
 
-多选项指多个候选选项中**单选一个**。修改选项数量时新建轮次，旧轮次选票不能混用。界面不提供单票解密，但持有完整私钥的人可以另写程序解密；一人投票时总票也会暴露该人的选择。名单 ID 不是身份认证；公开元数据可见 ID 和时间。当前没有零知识证明、门限解密和外部回滚检查点，仅用于单机、单写入者的课程实验。
-
-## 提交材料
-
-每人应提交自己的报告和源码，并根据真实参与填写姓名、学号和复核记录。组内保留完整 Git 历史、模块分工、AI 声明和测试证据。查看本轮细分修改：
-
-```powershell
-git log --reverse --oneline 891daec..HEAD
-```
-
-现场随机数据、本人解释与现场小改需要实际验收，仓库内自动测试不能替代这些环节。
-
-## 报告修订复现
-
-`tools/revise_reports.py --role A`（也可选B/C）使用 `python-docx` 和 `Pillow`，从Git基线 `891daec`、本轮证据及角色修订内容重新生成指定报告。该脚本用于复现本次修订，会覆盖相应Word文件；填写个人信息后应在Word中继续编辑，或先把个人修改保存为Git提交。每次再修改报告都应重新用Word导出PDF并检查全部页面。最终三份报告各10页，版式与数据核对结果见 `evidence/2026-10-27/report-review.json`。
+三份报告、AI声明和[联网验收记录](docs/联网验收记录.md)与本实现配套。姓名、学号、真实贡献及教师现场结果由本人填写。查看细分提交：git log --reverse --oneline 891daec..HEAD。
