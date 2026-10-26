@@ -3,6 +3,7 @@ import hashlib
 import secrets
 import sqlite3
 import uuid
+from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from cryptography import x509
@@ -68,7 +69,7 @@ def initialize_network(root, title, options, count, password, bits=2048):
     fingerprint = cert.fingerprint(hashes.SHA256()).hex()
     manifest = sign_manifest({'election_id': config['election_id'], 'config_sha256': digest(config),
                               'status': 'open', 'entries': [], 'updated_at': now()}, registrar)
-    with sqlite3.connect(server/'votes.sqlite3') as db:
+    with closing(sqlite3.connect(server/'votes.sqlite3')) as db:
         db.executescript('''
             PRAGMA journal_mode=WAL;
             CREATE TABLE state (id INTEGER PRIMARY KEY CHECK(id=1), manifest TEXT NOT NULL, result TEXT);
@@ -86,5 +87,6 @@ def initialize_network(root, title, options, count, password, bits=2048):
                       'election_id': config['election_id']}
             path = organizer/'admin.ticket.json' if role == 'admin' else organizer/'voters'/f'{voter}.ticket.json'
             write_json(path, ticket)
+        db.commit()
     return {'election_id': config['election_id'], 'server': str(server), 'trustee': str(trustee),
             'organizer': str(organizer), 'tls_sha256': fingerprint, 'voters': count}
