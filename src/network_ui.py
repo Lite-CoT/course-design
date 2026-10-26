@@ -180,7 +180,8 @@ class NetworkWindow(QMainWindow):
             receipt = self.client.vote(choice)
             return receipt, self.client.status(), self.client.me()
         def done(data):
-            self.render(data[1], data[2]); self.status_label.setText('选票已接收 · 回执签名和密文摘要验证通过')
+            self.render(data[1], data[2])
+            self.status_label.setText(f'选票已接收 · 回执验证通过 · 本端加密 {self.client.last_vote_metrics["encrypt_ms"]:.2f} ms')
         self.work(cast, done, '在本端随机加密选票，正在提交密文……')
 
     def close_clicked(self):

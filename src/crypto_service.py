@@ -1,7 +1,8 @@
 """Member A: Paillier key generation, one-hot ballots and encrypted vault.
 
 The private key is never required by ballot encryption or public aggregation.
-This is a classroom single-machine demonstration, not production voting.
+The LAN client reuses ballot encryption; the offline custodian holds the key.
+The original local experiment interface remains available as a teaching aid.
 """
 import secrets
 import uuid

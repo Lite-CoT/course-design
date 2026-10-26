@@ -16,6 +16,7 @@ def run(argv):
     init.add_argument('--title', required=True)
     init.add_argument('--options', required=True, help='逗号分隔')
     init.add_argument('--voters', type=int, required=True)
+    init.add_argument('--password-stdin', action='store_true', help='自动复测时从标准输入读一行口令')
     server = commands.add_parser('serve', help='启动只持公钥的服务器')
     server.add_argument('--data', required=True)
     server.add_argument('--host', default='0.0.0.0')
@@ -24,6 +25,7 @@ def run(argv):
     trustee.add_argument('--data', required=True)
     trustee.add_argument('--bundle', required=True)
     trustee.add_argument('--out', required=True)
+    trustee.add_argument('--password-stdin', action='store_true', help='自动复测时从标准输入读一行口令')
     for command in ('cast', 'status', 'close', 'export', 'publish'):
         sub = commands.add_parser(command)
         sub.add_argument('--host', default='127.0.0.1')
@@ -39,8 +41,8 @@ def run(argv):
     try:
         if args.command == 'init':
             from network_setup import initialize_network
-            password = getpass.getpass('保管口令（至少8字符）：')
-            if password != getpass.getpass('再次输入保管口令：'):
+            password = sys.stdin.readline().rstrip('\r\n') if args.password_stdin else getpass.getpass('保管口令（至少8字符）：')
+            if not args.password_stdin and password != getpass.getpass('再次输入保管口令：'):
                 raise VoteError('两次口令不一致')
             result = initialize_network(args.out, args.title, args.options.replace('，', ',').split(','), args.voters, password)
         elif args.command == 'serve':
@@ -49,13 +51,16 @@ def run(argv):
             return 0
         elif args.command == 'decrypt':
             from network_trustee import decrypt_bundle
-            result = decrypt_bundle(args.data, read_json(args.bundle, 256_000_000), getpass.getpass('保管口令：'))
+            password = sys.stdin.readline().rstrip('\r\n') if args.password_stdin else getpass.getpass('保管口令：')
+            result = decrypt_bundle(args.data, read_json(args.bundle, 256_000_000), password)
             write_json(args.out, result)
         else:
             from network_client import NetworkClient
             client = NetworkClient(args.host, args.port, read_json(args.ticket, 16000))
             client.connect()
-            if args.command == 'cast': result = client.vote(args.choice-1)
+            if args.command == 'cast':
+                receipt = client.vote(args.choice-1)
+                result = {'receipt': receipt, 'client_metrics': client.last_vote_metrics}
             elif args.command == 'status': result = {'status': client.status(), 'me': client.me()}
             elif args.command == 'close': result = client.close()
             elif args.command == 'publish': result = client.publish(read_json(args.result, 128000))

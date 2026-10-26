@@ -1,4 +1,4 @@
-"""Packaged desktop entry and isolated trustee subprocess protocol."""
+"""LAN client by default; explicit server/custodian CLI and legacy experiments."""
 import json
 import sys
 from pathlib import Path
@@ -41,6 +41,11 @@ def main():
         from PySide6.QtCore import QTimer
         from ui_smoke import run_smoke
         out = Path(sys.argv[sys.argv.index('--ui-smoke')+1])
+        QTimer.singleShot(300, lambda: run_smoke(app,window,out))
+    if '--network-ui-smoke' in sys.argv:
+        from PySide6.QtCore import QTimer
+        from network_ui_smoke import run_smoke
+        out = Path(sys.argv[sys.argv.index('--network-ui-smoke')+1])
         QTimer.singleShot(300, lambda: run_smoke(app,window,out))
     sys.exit(app.exec())
 

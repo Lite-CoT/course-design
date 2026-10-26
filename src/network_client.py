@@ -4,6 +4,7 @@ import hmac
 import http.client
 import re
 import ssl
+from time import perf_counter
 from common import VoteError, canonical, digest
 from crypto_service import encrypt_ballot
 from network_protocol import parse_json, validate_election, verify_object, verify_result, verify_bundle
@@ -42,6 +43,7 @@ class NetworkClient:
             raise VoteError('端口必须在1至65535之间')
         self.host, self.port, self.ticket = host.strip(), port, dict(ticket)
         self.election = None
+        self.last_vote_metrics = {}
 
     def request(self, method, path, data=None, authenticated=True):
         # Trust is the exact certificate fingerprint delivered with the ticket,
@@ -110,13 +112,18 @@ class NetworkClient:
             raise VoteError('请先连接服务器')
         if self.ticket['role'] != 'voter':
             raise VoteError('请使用投票凭证')
+        started = perf_counter()
         ballot = encrypt_ballot(self.election['config'], self.ticket['voter_id'], choice)
+        encrypted = perf_counter()
         response = self.request('POST', '/api/ballots', {'ballot': ballot})
+        received = perf_counter()
         receipt = response['receipt']
         payload = verify_object(receipt, self.election['config']['audit_public_key'])
         if (payload['voter_id'] != self.ticket['voter_id'] or payload['election_id'] != self.ticket['election_id']
                 or payload['ballot_sha256'] != digest(ballot)):
             raise VoteError('服务器回执与本端提交选票不一致')
+        self.last_vote_metrics = {'encrypt_ms': (encrypted-started)*1000,
+                                  'submit_roundtrip_ms': (received-encrypted)*1000}
         return receipt
 
     def close(self):
