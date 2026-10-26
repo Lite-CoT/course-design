@@ -75,7 +75,7 @@ py -3.12 -m venv .venv
 ## 复测与证据
 
 ~~~powershell
-# 18项联网测试＋9项既有工程回归
+# 18项联网测试＋15项任务书挑战回归＋9项既有工程回归
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 # 服务器＋6个独立客户端进程＋离线保管进程；每次使用新的work目录
 .\.venv\Scripts\python.exe tools/verify_network.py --work work/check-1 --evidence outputs/network
@@ -86,6 +86,14 @@ py -3.12 -m venv .venv
 ~~~
 
 联网原始证据位于evidence/2026-10-27-network/，包含进程数、实际计时、签名结果、截图与源码哈希。自动验收在同一电脑通过真实TLS连接完成；跨物理电脑的连通性按[现场步骤](docs/现场验收.md)复核。历史单机证据保留于evidence/2026-10-27/，不混作联网验收。
+
+任务书五项针对性验证见[随机验收与口试说明](docs/抗AI随机验收.md)和[测试修复记录](docs/针对性测试记录.md)。可现场生成新参数或导入教师JSON数据：
+
+~~~powershell
+.\.venv\Scripts\python.exe src/main.py challenge --out outputs/现场随机01 --rounds 7 --max-voters 47 --sizes 10 --network-sizes 10 --repeats 1
+~~~
+
+省略seed时每次生成新测试种子；该种子不控制密钥或加密随机数。当前新增证据保存在evidence/2026-10-27-challenges/，旧报告和旧证据中的计时仍属于其记录的历史版本。
 
 ## Windows打包
 
