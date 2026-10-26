@@ -1,0 +1,14 @@
+test_damaged_public_config_raises_domain_error (test_regressions.ElectionRegressionTests.test_damaged_public_config_raises_domain_error) ... ok
+test_export_contains_only_audited_files (test_regressions.ElectionRegressionTests.test_export_contains_only_audited_files) ... ok
+test_export_rejects_destination_inside_election (test_regressions.ElectionRegressionTests.test_export_rejects_destination_inside_election) ... ok
+test_malformed_ballots_raise_domain_errors (test_regressions.ElectionRegressionTests.test_malformed_ballots_raise_domain_errors) ... ok
+test_malformed_manifest_is_rejected (test_regressions.ElectionRegressionTests.test_malformed_manifest_is_rejected) ... ok
+test_nested_unregistered_ballot_is_not_silently_ignored (test_regressions.ElectionRegressionTests.test_nested_unregistered_ballot_is_not_silently_ignored) ... ok
+test_strict_json_read (test_regressions.ElectionRegressionTests.test_strict_json_read) ... ok
+test_trustee_rejects_bad_request_shape_and_partial_tally (test_regressions.ElectionRegressionTests.test_trustee_rejects_bad_request_shape_and_partial_tally) ... ok
+test_trustee_uses_its_own_timing_measurements (test_regressions.ElectionRegressionTests.test_trustee_uses_its_own_timing_measurements) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 1.112s
+
+OK

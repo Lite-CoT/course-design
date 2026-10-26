@@ -1,0 +1,52 @@
+{
+  "created_at": "2026-10-26T17:01:54.679669+00:00",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "exe": "dist/MiPiaoLab.exe",
+  "exe_sha256": "cb5b17c76030f7900795f6b7cc9dca4e7870c01a8a84a86bc6435e3ef208446e",
+  "exe_bytes": 56442072,
+  "pyinstaller": "6.22.3",
+  "build_spec_sha256": "53527670d9478e01c05888186bccc821bd790a8da23022d8a76969f65934cd10",
+  "build_command": "python -m PyInstaller --noconfirm build_app.spec",
+  "dependencies": {
+    "PySide6-Essentials": "6.12.0",
+    "cryptography": "50.0.2",
+    "gmpy2": "2.3.2",
+    "phe": "1.5.0"
+  },
+  "source_files_sha256": {
+    "app_ui.py": "471e44e9f3cec57174f3a501c1f890ebd3858ec3b7d3d5346ce384d02f5093aa",
+    "audit_service.py": "15a4254fc64477ed815a17ae55958ede81be553bf7c9e9b1e35fbd164b12163d",
+    "common.py": "fb5e61ff9e57e8a7df4650536e8e70b5e54a145e51aa951908ebc2ed65b12a3e",
+    "crypto_service.py": "8cd5d01a5f108a33bde2902b1695256878190e962a7392ba752c0ad7ca9fc32e",
+    "election_service.py": "f1544704646fbdbda55ea4e648730b707cb77e147af71d73369d6e7a0c3f0518",
+    "experiments.py": "20e180abcb4b1209d8c659f55faae9eb4a4f64eaa8605534309c598d480c9200",
+    "main.py": "8046d54eae5846d547cb201081b1a2e5b984f39fc178cffe328dac36aaf83009",
+    "tally_service.py": "b38e0aeeaed8c04f55fcb7d987bdee0230ff137ba891a2b171c09b3637e6982b",
+    "ui_smoke.py": "14080c090ec844f541b41f1df1c0c3187bffdc652fc7e3e4b948e6cd0b39b348"
+  },
+  "quick_experiments": {
+    "passed": 29,
+    "total": 29,
+    "command": "dist/MiPiaoLab.exe --experiments evidence/2026-10-27/packaged --quick"
+  },
+  "native_ui_smoke": {
+    "counts": [
+      3,
+      2,
+      1
+    ],
+    "delete_demo": true,
+    "passed": true,
+    "subprocess_trustee": true,
+    "tamper_demo": true,
+    "ui_votes": 6
+  },
+  "initial_failure": "QtWidgets import failed with DLL procedure not found; CLI experiments alone did not reveal it.",
+  "icu_diagnosis": {
+    "Qt6Core_required_symbols": 20,
+    "missing_from_PATH_Poppler_ICU": 20,
+    "missing_from_Windows_ICU": 0
+  },
+  "fix": "Exclude incompatible PATH ICU copies; retain Windows ICU. Collect gmpy2 delvewheel DLL directory and dependency metadata.",
+  "frozen_source_hash_note": "Frozen modules contain no loose .py files, so packaged experiment_results has an empty source_files_sha256. This build record binds the executable hash to the measured source."
+}

@@ -1,0 +1,1 @@
+{"accepted":6,"aggregate_ms":0.5667000077664852,"audit_ms":6.549699930474162,"counts":[3,2,1],"created_at":"2026-10-26T16:57:23+00:00","decrypt_ms":5.140800029039383,"election_id":"0e65fb9e5521448d93e16a2139d6b225","eligible":12,"manifest_sha256":"eb1b457590660949443f45d67b218f5c9c35303c65283b4e656bbff4a8efe683","options":["同意","反对","弃权"],"title":"基准实验"}

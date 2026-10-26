@@ -1,0 +1,94 @@
+{
+  "checked_at": "2026-10-26T17:00:35.445921+00:00",
+  "baseline": "891daec",
+  "renderer": "Microsoft Word 16.0 read-only PDF export; Poppler 110 dpi",
+  "source_matches_full_run": true,
+  "original_inputs": {
+    "3-B230414_任务书.docx": "1f042a500e8d6fea2ace812e634033c156c472df5f41a3cc5741a503eaf16b45",
+    "专业课程设计报告_模版.docx": "96a3312265eb96a5ad151457dbcd032e5fea32fa77dee064b0b78c2c4b4e1cc2"
+  },
+  "reports": {
+    "A": {
+      "file": "reports/成员A_选票编码与Paillier加密模块_报告.docx",
+      "sha256": "3bc2a0a20721cdb2158f3148f8b4b32b4c10f6a5c8693cc3af55231595a34a30",
+      "pages": 10,
+      "pdf_sha256": "e4e2efdab9b54b70dbc1306af1dc96897b6f45708173922dadacc24cb421cae9",
+      "body_font": "宋体 12 pt",
+      "body_line_spacing": 1.5,
+      "chapter_heading_pt": 14,
+      "page_size_and_margins_match_baseline": true,
+      "figures": 2,
+      "performance_matches_record": true,
+      "changed_package_parts": [
+        "word/_rels/document.xml.rels",
+        "word/document.xml",
+        "word/footer1.xml",
+        "word/styles.xml",
+        "word/media/image3.png"
+      ],
+      "added_package_parts": [
+        "word/media/image4.png"
+      ],
+      "changed_pages_since_previous_render": [
+        "page-06.png",
+        "page-07.png",
+        "page-08.png",
+        "page-09.png",
+        "page-10.png"
+      ],
+      "visual_review": "All 10 final pages reviewed; unchanged pages compared to previously reviewed renders."
+    },
+    "B": {
+      "file": "reports/成员B_同态汇总与受控解密模块_报告.docx",
+      "sha256": "02de3ee61d01cddcb38bc843b7320e0c8e1603a8420211905db17837164700e2",
+      "pages": 10,
+      "pdf_sha256": "44e0de6d95dae6ab48e7c76e35eee28ebe5f8ee125f9b6aea3047323db37c196",
+      "body_font": "宋体 12 pt",
+      "body_line_spacing": 1.5,
+      "chapter_heading_pt": 14,
+      "page_size_and_margins_match_baseline": true,
+      "figures": 2,
+      "performance_matches_record": true,
+      "changed_package_parts": [
+        "word/_rels/document.xml.rels",
+        "word/document.xml",
+        "word/footer1.xml",
+        "word/styles.xml",
+        "word/media/image3.png"
+      ],
+      "added_package_parts": [
+        "word/media/image4.png"
+      ],
+      "changed_pages_since_previous_render": [
+        "page-05.png"
+      ],
+      "visual_review": "All 10 final pages reviewed; unchanged pages compared to previously reviewed renders."
+    },
+    "C": {
+      "file": "reports/成员C_可视化交互与选票审计模块_报告.docx",
+      "sha256": "990536d664c6a25fd347e2110caf964690a0c5801d3c2845c43c5af3ac6be8ab",
+      "pages": 10,
+      "pdf_sha256": "c946917f102281235a5806b1dcd95d7fe8f218c6e9e97c8fefe5a71066d3b26a",
+      "body_font": "宋体 12 pt",
+      "body_line_spacing": 1.5,
+      "chapter_heading_pt": 14,
+      "page_size_and_margins_match_baseline": true,
+      "figures": 2,
+      "performance_matches_record": true,
+      "changed_package_parts": [
+        "word/_rels/document.xml.rels",
+        "word/document.xml",
+        "word/footer1.xml",
+        "word/styles.xml",
+        "word/media/image3.png"
+      ],
+      "added_package_parts": [
+        "word/media/image4.png"
+      ],
+      "changed_pages_since_previous_render": [
+        "page-05.png"
+      ],
+      "visual_review": "All 10 final pages reviewed; unchanged pages compared to previously reviewed renders."
+    }
+  }
+}
