@@ -7,6 +7,8 @@ import random
 import shutil
 import statistics
 import tempfile
+import hashlib
+from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 from time import perf_counter
 from common import VoteError, now, read_json, write_json, digest
@@ -30,7 +32,8 @@ def run_experiments(output, full=True):
                 raise AssertionError('预期拒绝但操作成功')
             cases.append({'name': name, 'owner': owner, 'passed': True, 'detail': str(value or '符合预期'), 'ms': (perf_counter()-start)*1000})
         except Exception as exc:
-            passed = expected_error and isinstance(exc, (VoteError, ValueError, KeyError))
+            # A programming error such as KeyError must never count as a safe rejection.
+            passed = expected_error and isinstance(exc, VoteError)
             cases.append({'name': name, 'owner': owner, 'passed': passed, 'detail': str(exc), 'ms': (perf_counter()-start)*1000})
 
     with tempfile.TemporaryDirectory(prefix='paillier-lab-') as temp:
@@ -141,6 +144,40 @@ def run_experiments(output, full=True):
             return '动态4选项得到 [1,1,1,1]'
         check('动态选项数量', 'A/B', dynamic_tally)
 
+        for option_count in (2, 8):
+            def option_boundary(option_count=option_count):
+                t = create_election(Path(temp)/f'options-{option_count}', '选项边界',
+                                    [f'选项{i+1}' for i in range(option_count)], option_count, PASSWORD)
+                for i in range(option_count):
+                    t.cast(f'V{i+1:04d}', i)
+                t.close()
+                counts = decrypt_tally(t.root, PASSWORD, aggregate(t.root))['counts']
+                assert counts == [1] * option_count
+                return f'{option_count}个选项各一票，结果 {counts}'
+            check(f'{option_count}选项边界', 'A/B', option_boundary)
+
+        def single_voter_limit():
+            t = create_election(Path(temp)/'single', '单人隐私边界', ['甲','乙'], 1, PASSWORD)
+            t.cast('V0001', 1)
+            t.close()
+            counts = decrypt_tally(t.root, PASSWORD, aggregate(t.root))['counts']
+            assert counts == [0, 1]
+            return '局限确认：一人投票的总票 [0,1] 暴露该人的选择'
+        check('单人投票隐私局限', 'B', single_voter_limit)
+
+        def balanced_invalid_limit():
+            t = create_election(Path(temp)/'balanced', '非独热组合边界', ['甲','乙'], 2, PASSWORD)
+            pk = public_key(t.config)
+            for i, vector in enumerate(([2, 0], [0, 0]), 1):
+                ballot = encrypt_ballot(t.config, f'V{i:04d}', 0)
+                ballot['ciphertexts'] = [str(pk.raw_encrypt(x)) for x in vector]
+                t.accept(ballot)
+            t.close()
+            counts = decrypt_tally(t.root, PASSWORD, aggregate(t.root))['counts']
+            assert counts == [2, 0]
+            return '局限确认：非独热选票 [2,0] 与 [0,0] 的总和仍满足两票约束'
+        check('非法选票组合局限', 'A/B', balanced_invalid_limit)
+
         # Explicit limitation experiment: a structurally valid but non-one-hot vote.
         invalid = create_election(Path(temp)/'invalid', '恶意客户端边界', ['甲','乙'], 1, PASSWORD)
         b = encrypt_ballot(invalid.config, 'V0001', 0)
@@ -185,8 +222,18 @@ def run_experiments(output, full=True):
                 runs.append({'repeat':repeat+1,'encrypt_ms':enc_ms,'aggregate_ms':agg_ms,'decrypt_ms':dec_ms,'counts':counts})
             performance.append({'voters':size,'options':3,'runs':runs,
                 **{k:statistics.mean(r[k] for r in runs) for k in ('encrypt_ms','aggregate_ms','decrypt_ms')}})
-    report = {'created_at':now(),'environment':{'os':platform.platform(),'python':platform.python_version(),
-              'processor':platform.processor(),'key_bits':2048,'phe':'1.5.0','gmpy2':'2.3.2'},
+    dependencies = {}
+    for name in ('phe', 'gmpy2', 'cryptography', 'PySide6-Essentials'):
+        try:
+            dependencies[name] = version(name)
+        except PackageNotFoundError:
+            dependencies[name] = 'not installed'
+    source_hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                     for p in sorted(Path(__file__).parent.glob('*.py'))}
+    report = {'created_at':now(),'run_mode':'full' if full else 'quick',
+              'source_files_sha256':source_hashes,
+              'environment':{'os':platform.platform(),'python':platform.python_version(),
+              'processor':platform.processor(),'key_bits':2048,'dependencies':dependencies},
               'fixture':'synthetic / fixed seed 20261026+repeat; encryption randomness is not seeded',
               'cases':cases,'passed':sum(c['passed'] for c in cases),'total':len(cases),'performance':performance,
               'performance_scope':'Paillier primitives only; excludes IO, signing, KDF and GUI',
