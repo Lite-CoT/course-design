@@ -27,6 +27,17 @@ def main():
     command = [str(Path(args.exe).resolve())] if args.exe else [sys.executable, str(ROOT/'src/main.py')]
     env = dict(os.environ, PYTHONIOENCODING='utf-8')
     password = 'Synthetic-Acceptance-2026!'
+    def stop_server(process):
+        if process.poll() is None:
+            # A PyInstaller one-file process has a child on Windows. Stopping
+            # only its bootstrap parent would leave our test listener running.
+            if os.name == 'nt':
+                subprocess.run(['taskkill','/PID',str(process.pid),'/T','/F'],
+                               capture_output=True, timeout=20)
+            else:
+                process.terminate()
+            process.wait(timeout=20)
+        if process.stdout: process.stdout.close()
     def run(arguments, stdin=None, expected=0):
         started = perf_counter()
         completed = subprocess.run(command+arguments, input=stdin, text=True, encoding='utf-8',
@@ -69,7 +80,7 @@ def main():
         published, _ = run(['status',*connection('V0008')])
         assert published['status']['result'] == result
         before_restart = published['status']
-        server.terminate(); server.wait(timeout=20)
+        stop_server(server)
         server = subprocess.Popen(command+['serve','--data',str(work/'round/server'),'--host','127.0.0.1','--port',port],
                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', env=env)
         assert f':{port}' in server.stdout.readline()
@@ -96,8 +107,7 @@ def main():
         write_json(evidence/'signed-result.json', result)
         print(json.dumps({key:record[key] for key in ('mode','actual_counts','client_processes','passed')},ensure_ascii=False))
     finally:
-        if server.poll() is None: server.terminate(); server.wait(timeout=20)
-        if server.stdout: server.stdout.close()
+        stop_server(server)
 
 
 if __name__ == '__main__': main()
