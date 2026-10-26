@@ -30,6 +30,8 @@ def aggregate(root):
 
 def decrypt_tally(root, password, request):
     # Independently recompute, rather than accepting an arbitrary ciphertext oracle.
+    if not isinstance(request, dict) or type(request.get('accepted')) is not int:
+        raise VoteError('汇总请求格式不正确')
     config, manifest, _ = audit(root)
     expected = aggregate(root)
     for key in ('election_id', 'manifest_sha256', 'ciphertexts', 'accepted'):
@@ -45,5 +47,5 @@ def decrypt_tally(root, password, request):
         raise VoteError('总票数约束不成立，可能存在非法加密选票')
     return {'election_id': config['election_id'], 'title': config['title'], 'options': config['options'],
             'counts': counts, 'accepted': request['accepted'], 'eligible': len(config['roster']),
-            'manifest_sha256': request['manifest_sha256'], 'aggregate_ms': request['aggregate_ms'],
-            'audit_ms': request['audit_ms'], 'decrypt_ms': decrypt_ms, 'created_at': now()}
+            'manifest_sha256': expected['manifest_sha256'], 'aggregate_ms': expected['aggregate_ms'],
+            'audit_ms': expected['audit_ms'], 'decrypt_ms': decrypt_ms, 'created_at': now()}

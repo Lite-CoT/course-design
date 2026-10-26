@@ -90,6 +90,30 @@ class ElectionRegressionTests(unittest.TestCase):
         with self.assertRaisesRegex(VoteError, '额外文件'):
             audit(self.election.root)
 
+    def test_trustee_uses_its_own_timing_measurements(self):
+        e = self.election
+        e.cast('V0001', 0)
+        e.close()
+        request = aggregate(e.root)
+        request.update(aggregate_ms=-999, audit_ms=-999)
+        result = decrypt_tally(e.root, PASSWORD, request)
+        self.assertEqual(result['counts'], [1, 0])
+        self.assertGreaterEqual(result['aggregate_ms'], 0)
+        self.assertGreaterEqual(result['audit_ms'], 0)
+
+    def test_trustee_rejects_bad_request_shape_and_partial_tally(self):
+        e = self.election
+        e.cast('V0001', 0)
+        e.cast('V0002', 1)
+        e.close()
+        request = aggregate(e.root)
+        single = copy.deepcopy(request)
+        single['ciphertexts'] = read_json(e.root / 'public/ballots' /
+                                         e.payload['entries'][0]['file'])['ciphertexts']
+        for bad in [None, [], {}, dict(request, accepted=True), single]:
+            with self.subTest(request_type=type(bad).__name__), self.assertRaises(VoteError):
+                decrypt_tally(e.root, PASSWORD, bad)
+
 
 if __name__ == '__main__':
     unittest.main()
