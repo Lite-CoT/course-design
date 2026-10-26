@@ -7,7 +7,7 @@ import ssl
 from time import perf_counter
 from common import VoteError, canonical, digest
 from crypto_service import encrypt_ballot
-from network_protocol import parse_json, validate_election, verify_object, verify_result, verify_bundle
+from network_protocol import parse_json, validate_election, verify_receipt, verify_result, verify_bundle
 from audit_service import require_fields
 
 MAX_RESPONSE = 256_000_000
@@ -102,9 +102,7 @@ class NetworkClient:
     def me(self):
         value = self.request('GET', '/api/me')
         if value['receipt'] is not None:
-            payload = verify_object(value['receipt'], self.election['config']['audit_public_key'])
-            if payload['voter_id'] != self.ticket['voter_id'] or payload['election_id'] != self.ticket['election_id']:
-                raise VoteError('回执身份或轮次不一致')
+            verify_receipt(self.election, value['receipt'], self.ticket['voter_id'])
         return value
 
     def vote(self, choice):
@@ -118,10 +116,7 @@ class NetworkClient:
         response = self.request('POST', '/api/ballots', {'ballot': ballot})
         received = perf_counter()
         receipt = response['receipt']
-        payload = verify_object(receipt, self.election['config']['audit_public_key'])
-        if (payload['voter_id'] != self.ticket['voter_id'] or payload['election_id'] != self.ticket['election_id']
-                or payload['ballot_sha256'] != digest(ballot)):
-            raise VoteError('服务器回执与本端提交选票不一致')
+        verify_receipt(self.election, receipt, self.ticket['voter_id'], digest(ballot))
         self.last_vote_metrics = {'encrypt_ms': (encrypted-started)*1000,
                                   'submit_roundtrip_ms': (received-encrypted)*1000}
         return receipt

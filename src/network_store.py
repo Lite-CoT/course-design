@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from common import VoteError, canonical, digest, now, read_json, b64
 from audit_service import sign_manifest, validate_ballot
 from network_protocol import (validate_election, parse_json, audit_records, aggregate_records,
-                              sign_object, verify_result)
+                              sign_object, verify_result, verify_receipt)
 
 
 class APIError(VoteError):
@@ -58,13 +58,20 @@ class NetworkStore:
         return {'voter_id': row[0], 'role': row[1]}
 
     def _read(self, db):
-        row = db.execute('SELECT manifest,result FROM state WHERE id=1').fetchone()
-        if row is None:
+        state = db.execute('SELECT manifest,result FROM state WHERE id=1').fetchone()
+        if state is None:
             raise VoteError('投票状态丢失')
-        manifest = parse_json(row[0].encode())
-        ballots = [parse_json(item[0].encode()) for item in db.execute('SELECT content FROM ballots ORDER BY rowid')]
+        manifest = parse_json(state[0].encode())
+        rows = db.execute('SELECT voter_id,nonce,content,receipt FROM ballots ORDER BY rowid').fetchall()
+        ballots = [parse_json(item[2].encode()) for item in rows]
         payload = audit_records(self.election, manifest, ballots)
-        result = parse_json(row[1].encode()) if row[1] is not None else None
+        # The SQL keys drive duplicate prevention and receipt lookup. Auditing
+        # only content would miss changes to those columns or to stored receipts.
+        for row, ballot, entry in zip(rows, ballots, payload['entries']):
+            if row[0] != ballot['voter_id'] or row[1] != ballot['nonce'].lower():
+                raise VoteError('数据库ID或随机标识索引与签名选票不一致')
+            verify_receipt(self.election, parse_json(row[3].encode()), row[0], entry['sha256'])
+        result = parse_json(state[1].encode()) if state[1] is not None else None
         return manifest, ballots, payload, result
 
     def _bundle(self, manifest, ballots):

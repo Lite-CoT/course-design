@@ -1,26 +1,15 @@
 """Public protocol verification shared by clients, server and offline trustee."""
-import json
+import re
+from datetime import datetime
 from time import perf_counter
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from common import VoteError, canonical, digest, b64, unb64
+from common import VoteError, canonical, digest, b64, unb64, decode_json
 from audit_service import require_fields, validate_config, validate_ballot, verify_manifest
 
 
 def parse_json(data):
-    def pairs(items):
-        out = {}
-        for key, value in items:
-            if key in out:
-                raise VoteError('JSON包含重复字段')
-            out[key] = value
-        return out
-    def constant(_):
-        raise VoteError('JSON不允许非有限数值')
-    try:
-        return json.loads(data.decode('utf-8'), object_pairs_hook=pairs, parse_constant=constant)
-    except (ValueError, UnicodeError, RecursionError) as exc:
-        raise VoteError('JSON数据格式不正确') from exc
+    return decode_json(data)
 
 
 def sign_object(payload, signer):
@@ -47,6 +36,22 @@ def validate_election(election):
         Ed25519PublicKey.from_public_bytes(unb64(election['config']['audit_public_key']))
     except (ValueError, TypeError) as exc:
         raise VoteError('配置签名公钥不正确') from exc
+
+
+def verify_receipt(election, envelope, voter, ballot_sha256=None):
+    payload = verify_object(envelope, election['config']['audit_public_key'])
+    require_fields(payload, ('election_id', 'voter_id', 'ballot_sha256', 'accepted_at'), '回执')
+    if (payload['election_id'] != election['config']['election_id'] or payload['voter_id'] != voter
+            or not isinstance(payload['ballot_sha256'], str)
+            or not re.fullmatch('[0-9a-f]{64}', payload['ballot_sha256'])
+            or (ballot_sha256 is not None and payload['ballot_sha256'] != ballot_sha256)):
+        raise VoteError('回执身份、轮次或选票摘要不一致')
+    try:
+        if datetime.fromisoformat(payload['accepted_at']).tzinfo is None:
+            raise ValueError()
+    except (TypeError, ValueError) as exc:
+        raise VoteError('回执接收时间格式错误') from exc
+    return payload
 
 
 def audit_records(election, manifest, ballots):
@@ -89,6 +94,12 @@ def aggregate_records(election, manifest, ballots):
 
 def verify_bundle(election, bundle):
     require_fields(bundle, ('election', 'manifest', 'ballots', 'aggregate', 'aggregation_ms'), '汇总包')
+    aggregate = bundle['aggregate']
+    require_fields(aggregate, ('election_id', 'manifest_sha256', 'accepted', 'ciphertexts'), '密文汇总')
+    if type(aggregate['accepted']) is not int:
+        raise VoteError('汇总票数必须为整数')
+    if type(bundle['aggregation_ms']) not in (int, float) or not 0 <= bundle['aggregation_ms'] < 1e12:
+        raise VoteError('汇总计时格式错误')
     if bundle['election'] != election:
         raise VoteError('汇总包与独立保管的可信配置不一致')
     expected, _ = aggregate_records(election, bundle['manifest'], bundle['ballots'])
