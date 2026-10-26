@@ -5,6 +5,11 @@ from pathlib import Path
 
 
 def main():
+    # Frozen Python does not honor PYTHONIOENCODING. Keep subprocess protocol
+    # output deterministic on Windows, whose redirected default may be GBK.
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, 'reconfigure') and not stream.isatty():
+            stream.reconfigure(encoding='utf-8', errors='backslashreplace')
     from network_cli import COMMANDS
     if len(sys.argv) > 1 and sys.argv[1] in COMMANDS:
         from network_cli import run
