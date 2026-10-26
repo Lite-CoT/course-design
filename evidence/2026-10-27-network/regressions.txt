@@ -1,0 +1,32 @@
+test_closed_empty_election_publishes_zero_counts (test_network.NetworkTests.test_closed_empty_election_publishes_zero_counts) ... ok
+test_concurrent_same_id_only_one_accepted (test_network.NetworkTests.test_concurrent_same_id_only_one_accepted) ... ok
+test_credential_cannot_impersonate_another_voter (test_network.NetworkTests.test_credential_cannot_impersonate_another_voter) ... ok
+test_database_tamper_detected (test_network.NetworkTests.test_database_tamper_detected) ... ok
+test_full_tls_vote_aggregate_offline_decrypt_publish (test_network.NetworkTests.test_full_tls_vote_aggregate_offline_decrypt_publish) ... ok
+test_invalid_token_is_rejected (test_network.NetworkTests.test_invalid_token_is_rejected) ... ok
+test_multiple_clients_can_vote_concurrently (test_network.NetworkTests.test_multiple_clients_can_vote_concurrently) ... ok
+test_network_schema_rejects_plaintext_and_invalid_ciphertext (test_network.NetworkTests.test_network_schema_rejects_plaintext_and_invalid_ciphertext) ... ok
+test_no_early_tally_and_no_late_ballot (test_network.NetworkTests.test_no_early_tally_and_no_late_ballot) ... ok
+test_receipt_recovers_confirmation_after_reconnect (test_network.NetworkTests.test_receipt_recovers_confirmation_after_reconnect) ... ok
+test_result_signature_cannot_be_forged (test_network.NetworkTests.test_result_signature_cannot_be_forged) ... ok
+test_role_permissions (test_network.NetworkTests.test_role_permissions) ... ok
+test_server_has_no_paillier_private_material (test_network.NetworkTests.test_server_has_no_paillier_private_material) ... ok
+test_strict_network_json_parser (test_network.NetworkTests.test_strict_network_json_parser) ... ok
+test_trustee_refuses_second_different_even_valid_signed_set (test_network.NetworkTests.test_trustee_refuses_second_different_even_valid_signed_set) ... ok
+test_trustee_rejects_wrong_password_and_partial_aggregate (test_network.NetworkTests.test_trustee_rejects_wrong_password_and_partial_aggregate) ... ok
+test_wrong_certificate_pin_rejected_before_credential_auth (test_network.NetworkTests.test_wrong_certificate_pin_rejected_before_credential_auth) ... ok
+test_wrong_config_digest_rejected (test_network.NetworkTests.test_wrong_config_digest_rejected) ... ok
+test_damaged_public_config_raises_domain_error (test_regressions.ElectionRegressionTests.test_damaged_public_config_raises_domain_error) ... ok
+test_export_contains_only_audited_files (test_regressions.ElectionRegressionTests.test_export_contains_only_audited_files) ... ok
+test_export_rejects_destination_inside_election (test_regressions.ElectionRegressionTests.test_export_rejects_destination_inside_election) ... ok
+test_malformed_ballots_raise_domain_errors (test_regressions.ElectionRegressionTests.test_malformed_ballots_raise_domain_errors) ... ok
+test_malformed_manifest_is_rejected (test_regressions.ElectionRegressionTests.test_malformed_manifest_is_rejected) ... ok
+test_nested_unregistered_ballot_is_not_silently_ignored (test_regressions.ElectionRegressionTests.test_nested_unregistered_ballot_is_not_silently_ignored) ... ok
+test_strict_json_read (test_regressions.ElectionRegressionTests.test_strict_json_read) ... ok
+test_trustee_rejects_bad_request_shape_and_partial_tally (test_regressions.ElectionRegressionTests.test_trustee_rejects_bad_request_shape_and_partial_tally) ... ok
+test_trustee_uses_its_own_timing_measurements (test_regressions.ElectionRegressionTests.test_trustee_uses_its_own_timing_measurements) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 14.396s
+
+OK

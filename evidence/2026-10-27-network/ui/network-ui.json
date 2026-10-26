@@ -1,0 +1,1 @@
+{"admin_connection":true,"counts":[3,2,1],"gui_votes":6,"note":"Two Qt windows in one UI process; separate OS client processes tested separately.","passed":true,"receipt_signature_verified":true,"result_signature_verified":true,"transport":"real TLS socket on loopback","voter_windows":2}

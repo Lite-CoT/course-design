@@ -1,0 +1,70 @@
+{
+  "checked_at": "2026-10-26T17:59:28.073195+00:00",
+  "baseline": "ebd220f",
+  "renderer": "Word 16.0 read-only PDF export plus Poppler 110 dpi",
+  "source_and_packaged_hashes_match_current_files": true,
+  "final_exe_sha256": "112c766a52588a191f50d9d4704cf9bd1db5c972539b1c47fe010ce6b90535e4",
+  "network_timing_table_values_ms": [
+    "19.34",
+    "151.91",
+    "0.59",
+    "5.16"
+  ],
+  "reports": {
+    "A": {
+      "path": "reports/成员A_选票编码与Paillier加密模块_报告.docx",
+      "sha256": "133f16388b06f853eccae6f69f3898728a2369cfeb2a110661c3cb63df3995b3",
+      "pages": 10,
+      "pdf_sha256": "c9e21bb43fb568db36dc6c80b985fd774265f0bd3d60971365b207417808f133",
+      "cover_and_scoring_form_pixel_identical_to_previous_review": true,
+      "body_font": "宋体 12 pt",
+      "body_line_spacing": 1.5,
+      "chapter_heading_pt": 14,
+      "network_timings_match_evidence": true,
+      "changed_package_parts": [
+        "word/document.xml",
+        "word/_rels/document.xml.rels",
+        "word/styles.xml"
+      ],
+      "visual_review": "All final pages reviewed; retained cover/form checked against previously reviewed pixel-identical pages."
+    },
+    "B": {
+      "path": "reports/成员B_同态汇总与受控解密模块_报告.docx",
+      "sha256": "0b1cad7bb2f94d4a37fb5627a74271ed6c0e5895908329f726725acb2ea4f30d",
+      "pages": 10,
+      "pdf_sha256": "b4ee7ae2755eb5d178ac3763eabcafab668cca146e6b866a49427436e0823ff4",
+      "cover_and_scoring_form_pixel_identical_to_previous_review": true,
+      "body_font": "宋体 12 pt",
+      "body_line_spacing": 1.5,
+      "chapter_heading_pt": 14,
+      "network_timings_match_evidence": true,
+      "changed_package_parts": [
+        "word/document.xml",
+        "word/_rels/document.xml.rels",
+        "word/styles.xml"
+      ],
+      "visual_review": "All final pages reviewed; retained cover/form checked against previously reviewed pixel-identical pages."
+    },
+    "C": {
+      "path": "reports/成员C_可视化交互与选票审计模块_报告.docx",
+      "sha256": "713dfc1c9e3616b283b0a8ff9a33249c29fb14ded4340bae13796d7c29690827",
+      "pages": 10,
+      "pdf_sha256": "c8c8a39ef631b7a5310a4e42a420bb6a188ae587f4c08491330b675cb6ee3c6d",
+      "cover_and_scoring_form_pixel_identical_to_previous_review": true,
+      "body_font": "宋体 12 pt",
+      "body_line_spacing": 1.5,
+      "chapter_heading_pt": 14,
+      "network_timings_match_evidence": true,
+      "changed_package_parts": [
+        "word/document.xml",
+        "word/_rels/document.xml.rels",
+        "word/styles.xml"
+      ],
+      "visual_review": "All final pages reviewed; retained cover/form checked against previously reviewed pixel-identical pages."
+    }
+  },
+  "original_inputs": {
+    "3-B230414_任务书.docx": "1f042a500e8d6fea2ace812e634033c156c472df5f41a3cc5741a503eaf16b45",
+    "专业课程设计报告_模版.docx": "96a3312265eb96a5ad151457dbcd032e5fea32fa77dee064b0b78c2c4b4e1cc2"
+  }
+}
