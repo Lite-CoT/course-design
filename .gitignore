@@ -4,7 +4,10 @@ __pycache__/
 *.pyc
 *.spec
 !build_app.spec
-!build_app.spec
+.venv/
+build/
+dist/
+.pytest_cache/
 *.vault
 app.lock
 ~$*
