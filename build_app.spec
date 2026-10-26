@@ -17,4 +17,4 @@ a.binaries = [entry for entry in a.binaries if not (
 pyz=PYZ(a.pure)
 exe=EXE(pyz,a.scripts,a.binaries,a.datas,[],name='MiPiaoLab',debug=False,
     bootloader_ignore_signals=False,strip=False,upx=False,console=True,
-    disable_windowed_traceback=False,hide_console='hide-early')
+    disable_windowed_traceback=False)

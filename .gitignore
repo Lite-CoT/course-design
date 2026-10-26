@@ -11,3 +11,10 @@ dist/
 *.vault
 app.lock
 ~$*
+*.ticket.json
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.key
+*.vault
+network-data/

@@ -5,6 +5,10 @@ from pathlib import Path
 
 
 def main():
+    from network_cli import COMMANDS
+    if len(sys.argv) > 1 and sys.argv[1] in COMMANDS:
+        from network_cli import run
+        sys.exit(run(sys.argv[1:]))
     if '--trustee' in sys.argv:
         from tally_service import decrypt_tally
         try:
@@ -23,11 +27,15 @@ def main():
         sys.exit(0 if r['passed']==r['total'] else 1)
     from PySide6.QtWidgets import QApplication
     from PySide6.QtGui import QFont
-    from app_ui import MainWindow
     app = QApplication(sys.argv)
     app.setApplicationName('密票实验室')
     app.setFont(QFont('Microsoft YaHei UI',10))
-    window = MainWindow()
+    if '--local-demo' in sys.argv or '--ui-smoke' in sys.argv:
+        from app_ui import MainWindow
+        window = MainWindow()
+    else:
+        from network_ui import NetworkWindow
+        window = NetworkWindow()
     window.show()
     if '--ui-smoke' in sys.argv:
         from PySide6.QtCore import QTimer

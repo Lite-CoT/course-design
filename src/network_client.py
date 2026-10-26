@@ -83,10 +83,10 @@ class NetworkClient:
         if (digest(election) != self.ticket['election_sha256']
                 or election['config']['election_id'] != self.ticket['election_id']):
             raise VoteError('服务器投票配置与凭证中可信摘要不符')
-        me = self.request('GET', '/api/me')
+        self.election = election
+        me = self.me()
         if me['role'] != self.ticket['role'] or me['voter_id'] != self.ticket['voter_id']:
             raise VoteError('服务器返回的凭证身份不一致')
-        self.election = election
         return {'election': election, 'me': me, 'status': self.status()}
 
     def status(self):
