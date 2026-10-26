@@ -98,6 +98,10 @@ class Election:
         if self.root.resolve() in output.parents:
             raise VoteError('请将公开包导出到投票目录之外')
         with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as z:
-            for p in (self.root / 'public').rglob('*.json'):
+            # Export the audited election only, never arbitrary neighboring JSON.
+            paths = [self.root / 'public' / name for name in ('config.json', 'manifest.json')]
+            paths.extend(self.root / 'public' / 'ballots' / entry['file']
+                         for entry in self.payload['entries'])
+            for p in paths:
                 z.write(p, p.relative_to(self.root))
         return str(output)
