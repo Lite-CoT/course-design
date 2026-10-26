@@ -1,8 +1,9 @@
 """Task-sheet challenges on isolated synthetic elections and real loopback TLS."""
 import copy
+import http.client
 import json
-import random
 import socket
+import ssl
 import sqlite3
 import sys
 import tempfile
@@ -22,6 +23,7 @@ from network_store import NetworkStore
 from network_client import NetworkClient, NetworkError
 from network_trustee import decrypt_bundle
 from network_protocol import verify_bundle, sign_object
+from challenge_checks import validate_case
 
 PASSWORD = 'Challenge-Synthetic-2026!'
 
@@ -161,6 +163,18 @@ class ChallengeTests(unittest.TestCase):
         self.reject(lambda: second.request('POST', '/api/ballots', {'ballot': b}), 409)
         self.assertEqual(self.admin.status()['accepted'], 1)
 
+    def test_invalid_plaintext_sum_blocks_result_without_recording_approval(self):
+        client = self.client('V0001')
+        ballot = encrypt_ballot(client.election['config'], 'V0001', 0)
+        pub = public_key(client.election['config'])
+        ballot['ciphertexts'] = [str(pub.raw_encrypt(x)) for x in (2, 0, 0)]
+        client.request('POST', '/api/ballots', {'ballot': ballot})
+        self.admin.close()
+        with self.assertRaisesRegex(VoteError, '总票数约束'):
+            decrypt_bundle(self.root / 'trustee', self.admin.export(), PASSWORD)
+        self.assertFalse((self.root / 'trustee/approved-result.json').exists())
+        self.assertIsNone(self.admin.status()['result'])
+
     def test_malformed_ballot_matrix_preserves_empty_state(self):
         client = self.client('V0001')
         original = encrypt_ballot(client.election['config'], 'V0001', 0)
@@ -204,6 +218,53 @@ class ChallengeTests(unittest.TestCase):
         self.assertEqual(result['payload']['counts'], [choices.count(i) for i in range(3)])
         self.assertEqual(result['payload']['accepted'], sum(x is not None for x in choices))
         self.assertEqual(NetworkStore(self.root / 'server').status()['status'], 'closed')
+
+    def test_http_framing_and_json_limits_leave_server_usable(self):
+        voter = self.client('V0001')
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        cases = [([], b'', 400),
+                 ([('Content-Length', '2'), ('Content-Length', '2')], b'{}', 400),
+                 ([('Transfer-Encoding', 'chunked')], b'', 400),
+                 ([('Content-Length', '128001')], b'', 413),
+                 ([('Content-Length', '-1')], b'', 413),
+                 ([('Content-Length', 'xyz')], b'', 400),
+                 ([('Content-Length', '2'), ('Content-Type', 'text/plain')], b'{}', 415)]
+        for raw in (b'{"ballot":{},"ballot":{}}', b'{"x":NaN}', b'[' * 70 + b'0' + b']' * 70):
+            cases.append(([('Content-Length', str(len(raw)))], raw, 400))
+        for headers, body, expected in cases:
+            with self.subTest(headers=headers):
+                connection = http.client.HTTPSConnection('127.0.0.1', self.server.server_port,
+                                                         context=context, timeout=5)
+                try:
+                    connection.putrequest('POST', '/api/ballots')
+                    connection.putheader('Authorization', 'Bearer ' + voter.ticket['token'])
+                    if not any(k == 'Content-Type' for k, _ in headers):
+                        connection.putheader('Content-Type', 'application/json')
+                    for key, value in headers: connection.putheader(key, value)
+                    connection.endheaders(body)
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, expected)
+                    self.assertIn('error', json.loads(response.read()))
+                finally:
+                    connection.close()
+        self.assertEqual(self.admin.status()['accepted'], 0)
+        voter.vote(1)
+        self.assertEqual(self.admin.status()['accepted'], 1)
+
+    def test_initialization_and_private_fixture_bounds(self):
+        for options, voters in [(['甲'], 2), (['甲'] * 9, 2), (['甲', ' 甲 '], 2),
+                                (['甲', '乙'], 0), (['甲', '乙'], 10001), (['甲', '乙'], True)]:
+            with self.subTest(options=options, voters=voters), self.assertRaises(VoteError):
+                initialize_network(self.root / 'invalid-init', '边界测试', options, voters, PASSWORD)
+            self.assertFalse((self.root / 'invalid-init').exists())
+        case = {'name': '现场输入', 'options': ['甲', '乙'], 'voters': 2, 'choices': [0, 1]}
+        self.assertEqual(validate_case(case), case)
+        for change in ({'choices': [True]}, {'choices': [2]}, {'choices': [-1]},
+                       {'choices': [0, 1, 0]}, {'options': ['甲', ' 甲 ']}, {'voters': False}):
+            with self.subTest(change=change), self.assertRaises(VoteError):
+                validate_case(dict(case, **change))
 
 
 if __name__ == '__main__':

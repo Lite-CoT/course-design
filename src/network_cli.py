@@ -5,12 +5,21 @@ import json
 import sys
 from common import VoteError, read_json, write_json
 
-COMMANDS = {'init', 'serve', 'cast', 'status', 'close', 'export', 'decrypt', 'publish'}
+COMMANDS = {'init', 'serve', 'cast', 'status', 'close', 'export', 'decrypt', 'publish', 'challenge'}
 
 
 def run(argv):
     parser = argparse.ArgumentParser(description='密票实验室：局域网密文投票')
     commands = parser.add_subparsers(dest='command', required=True)
+    challenge = commands.add_parser('challenge', help='隔离的随机票型、同态性质、边界与性能验证')
+    challenge.add_argument('--out', required=True, help='新的空证据目录')
+    challenge.add_argument('--seed', type=int, help='只控制测试输入；不固定密码学随机数')
+    challenge.add_argument('--rounds', type=int, default=7)
+    challenge.add_argument('--max-voters', type=int, default=30)
+    challenge.add_argument('--sizes', default='10,100,1000', help='纯算法性能人数，逗号分隔；空串可跳过')
+    challenge.add_argument('--network-sizes', default='10,100', help='真实TLS顺序投票人数；空串可跳过')
+    challenge.add_argument('--repeats', type=int, default=3)
+    challenge.add_argument('--fixture', help='教师现场指定的JSON测试数据，仅在临时轮次使用')
     init = commands.add_parser('init', help='在保管端初始化并生成三个分离目录')
     init.add_argument('--out', required=True)
     init.add_argument('--title', required=True)
@@ -39,6 +48,14 @@ def run(argv):
             sub.add_argument('--result', required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == 'challenge':
+            from challenge_checks import run_challenges
+            sizes = lambda text: tuple(int(x) for x in text.split(',') if x.strip())
+            report = run_challenges(args.out, seed=args.seed, random_rounds=args.rounds,
+                max_voters=args.max_voters, primitive_sizes=sizes(args.sizes),
+                network_sizes=sizes(args.network_sizes), repeats=args.repeats, fixture=args.fixture)
+            print(json.dumps({key: report[key] for key in ('seed', 'completed_checks', 'failed_checks', 'passed')}, ensure_ascii=True))
+            return 0 if report['passed'] else 1
         if args.command == 'init':
             from network_setup import initialize_network
             password = sys.stdin.readline().rstrip('\r\n') if args.password_stdin else getpass.getpass('保管口令（至少8字符）：')
