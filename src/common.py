@@ -34,8 +34,6 @@ def now():
 
 def read_json(path, limit=16_000_000):
     path = Path(path)
-    if path.stat().st_size > limit:
-        raise VoteError('文件超过允许大小')
     def unique(pairs):
         out = {}
         for k, v in pairs:
@@ -43,7 +41,18 @@ def read_json(path, limit=16_000_000):
                 raise VoteError('JSON包含重复字段')
             out[k] = v
         return out
-    return json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=unique)
+    def reject_constant(value):
+        raise VoteError('JSON不允许NaN或Infinity')
+    try:
+        # Bound the actual read too, in case a file changes after stat().
+        with path.open('rb') as stream:
+            data = stream.read(limit + 1)
+        if len(data) > limit:
+            raise VoteError('文件超过允许大小')
+        return json.loads(data.decode('utf-8'), object_pairs_hook=unique,
+                          parse_constant=reject_constant)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise VoteError('无法读取有效JSON文件：' + path.name) from exc
 
 
 def write_json(path, value):

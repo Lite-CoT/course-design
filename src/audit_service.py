@@ -4,6 +4,7 @@ Signatures detect changes relative to the trusted public configuration.
 They do not prove encrypted one-hot validity or prevent complete rollback.
 """
 import math
+import re
 from pathlib import Path
 from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -11,11 +12,45 @@ from cryptography.exceptions import InvalidSignature
 from common import VoteError, canonical, b64, unb64, digest, read_json
 
 
+def require_fields(value, fields, label):
+    if not isinstance(value, dict) or set(value) != set(fields):
+        raise VoteError(label + '字段不正确')
+
+
+def validate_config(config):
+    require_fields(config, ('version', 'election_id', 'title', 'options', 'roster',
+                           'n', 'key_bits', 'created_at', 'audit_public_key'), '配置')
+    if type(config['version']) is not int or config['version'] != 1:
+        raise VoteError('配置版本不正确')
+    if not isinstance(config['election_id'], str) or not re.fullmatch(r'[0-9a-f]{32}', config['election_id']):
+        raise VoteError('配置投票轮次格式错误')
+    if not isinstance(config['title'], str) or not 1 <= len(config['title'].strip()) <= 80:
+        raise VoteError('配置标题格式错误')
+    options, roster = config['options'], config['roster']
+    if (not isinstance(options, list) or not 2 <= len(options) <= 8
+            or any(not isinstance(x, str) or not 1 <= len(x.strip()) <= 24 for x in options)
+            or len(set(options)) != len(options)):
+        raise VoteError('配置选项格式错误')
+    if (not isinstance(roster, list) or not 1 <= len(roster) <= 10000
+            or any(not isinstance(x, str) or not 1 <= len(x) <= 80 for x in roster)
+            or len(set(roster)) != len(roster)):
+        raise VoteError('配置授权名单格式错误')
+    n, bits = config['n'], config['key_bits']
+    if (type(bits) is not int or bits not in (1024, 2048, 3072)
+            or not isinstance(n, str) or not re.fullmatch(r'[1-9][0-9]{1,924}', n)):
+        raise VoteError('配置公钥参数错误')
+    if int(n).bit_length() != bits or int(n) % 2 == 0:
+        raise VoteError('配置公钥长度或模数错误')
+
+
 def sign_manifest(payload, signer):
     return {'payload': payload, 'signature': b64(signer.sign(canonical(payload)))}
 
 
 def verify_manifest(config, manifest):
+    require_fields(manifest, ('payload', 'signature'), '清单')
+    require_fields(manifest['payload'], ('election_id', 'config_sha256', 'status',
+                                         'entries', 'updated_at'), '清单载荷')
     try:
         Ed25519PublicKey.from_public_bytes(unb64(config['audit_public_key'])).verify(
             unb64(manifest['signature']), canonical(manifest['payload']))
@@ -31,7 +66,8 @@ def verify_manifest(config, manifest):
 
 def validate_ballot(config, ballot):
     expected = {'version', 'election_id', 'voter_id', 'ballot_type', 'timestamp', 'nonce', 'ciphertexts'}
-    if set(ballot) != expected or ballot['version'] != 1:
+    require_fields(ballot, expected, '选票')
+    if type(ballot['version']) is not int or ballot['version'] != 1:
         raise VoteError('选票字段或版本不正确')
     if ballot['election_id'] != config['election_id']:
         raise VoteError('选票属于其他投票轮次')
@@ -39,7 +75,7 @@ def validate_ballot(config, ballot):
         raise VoteError('投票者ID不在授权名单内')
     if ballot['ballot_type'] != 'single_choice':
         raise VoteError('不支持的票型')
-    if not isinstance(ballot['nonce'], str) or len(ballot['nonce']) != 32:
+    if not isinstance(ballot['nonce'], str) or not re.fullmatch(r'[0-9a-fA-F]{32}', ballot['nonce']):
         raise VoteError('选票随机标识格式错误')
     try:
         int(ballot['nonce'], 16)
@@ -63,14 +99,14 @@ def validate_ballot(config, ballot):
 def audit(root):
     root = Path(root)
     config = read_json(root / 'public' / 'config.json')
-    if not 2 <= len(config['options']) <= 8 or not 1 <= len(config['roster']) <= 10000:
-        raise VoteError('配置规模超出支持范围')
+    validate_config(config)
     payload = verify_manifest(config, read_json(root / 'public' / 'manifest.json'))
     entries = payload['entries']
     if not isinstance(entries, list) or len(entries) > len(config['roster']):
         raise VoteError('清单记录数量异常')
     expected, seen, nonces, ballots = set(), set(), set(), []
     for entry in entries:
+        require_fields(entry, ('voter_id', 'file', 'sha256'), '清单选票记录')
         voter = entry['voter_id']
         if voter not in config['roster'] or voter in seen:
             raise VoteError('清单出现非法ID或重复投票')
@@ -90,7 +126,10 @@ def audit(root):
         nonces.add(ballot['nonce'])
         expected.add(filename)
         ballots.append(ballot)
-    actual = {p.name for p in (root / 'public' / 'ballots').iterdir() if p.is_file()}
+    ballot_dir = root / 'public' / 'ballots'
+    if not ballot_dir.is_dir():
+        raise VoteError('选票目录不存在')
+    actual = {p.name for p in ballot_dir.iterdir()}
     if actual != expected:
         raise VoteError('发现未登记选票或额外文件')
     return config, payload, ballots

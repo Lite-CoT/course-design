@@ -46,6 +46,50 @@ class ElectionRegressionTests(unittest.TestCase):
         with self.assertRaisesRegex(VoteError, '目录之外'):
             self.election.export_public(self.election.root / 'export.zip')
 
+    def test_malformed_ballots_raise_domain_errors(self):
+        original = encrypt_ballot(self.election.config, 'V0001', 0)
+        malformed = [None, [], {}, dict(original, version=True),
+                     dict(original, nonce='+' + 'a' * 31),
+                     dict(original, timestamp='2026-10-27'),
+                     dict(original, ciphertexts=['0', '1'])]
+        for ballot in malformed:
+            with self.subTest(ballot=ballot), self.assertRaises(VoteError):
+                validate_ballot(self.election.config, ballot)
+
+    def test_damaged_public_config_raises_domain_error(self):
+        path = self.election.root / 'public/config.json'
+        for data in [None, [], {}, dict(self.election.config, options=[[], []]),
+                     dict(self.election.config, n='9' * 10000),
+                     dict(self.election.config, version=True)]:
+            with self.subTest(data_type=type(data).__name__):
+                write_json(path, data)
+                with self.assertRaises(VoteError):
+                    audit(self.election.root)
+
+    def test_malformed_manifest_is_rejected(self):
+        path = self.election.root / 'public/manifest.json'
+        for value in [None, [], {}, {'payload': [], 'signature': 'bad'}]:
+            write_json(path, value)
+            with self.assertRaises(VoteError):
+                audit(self.election.root)
+
+    def test_strict_json_read(self):
+        path = self.directory / 'invalid.json'
+        for data in [b'{', b'\xff', b'{"x":1,"x":2}', b'{"x":NaN}', b'Infinity']:
+            path.write_bytes(data)
+            with self.subTest(data=data), self.assertRaises(VoteError):
+                read_json(path)
+        path.write_bytes(b'123456')
+        with self.assertRaisesRegex(VoteError, '大小'):
+            read_json(path, limit=5)
+        with self.assertRaises(VoteError):
+            read_json(self.directory / 'missing.json')
+
+    def test_nested_unregistered_ballot_is_not_silently_ignored(self):
+        write_json(self.election.root / 'public/ballots/subdir/hidden.json', {})
+        with self.assertRaisesRegex(VoteError, '额外文件'):
+            audit(self.election.root)
+
 
 if __name__ == '__main__':
     unittest.main()
