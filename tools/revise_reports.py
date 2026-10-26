@@ -28,7 +28,7 @@ ROLE_CONTENT = {
  'A': {
   'functions': '本模块接收本轮配置、名单ID和一个选项索引，输出固定维度的随机密文向量。创建流程生成2048位Paillier密钥，登记流程生成Ed25519签名密钥，口令保护的保管库保存私钥材料。选择为单选，选项数量可以变化，选票中不保存明文索引。',
   'design': '先用独热向量约束客户端表达方式，再逐分量调用raw_encrypt；把公开随机标识nonce与加密内部随机数r区分，避免公开r。选项维度来自配置，不把三选项写死。密钥保管采用scrypt与AES-GCM，错误口令通过认证标签校验失败返回。',
-  'flow': ['输入配置、名单ID和选择索引', 'ID在名单且索引合法？', '构造独热向量，每项为0或1', '用独立随机数加密各分量', '附加轮次、票型、UTC时间和nonce', '交给登记端校验并接收'],
+  'flow': ['输入配置、名单ID和选择索引', 'ID在名单且索引合法？', '构造独热向量，每项为0或1', '用独立随机数加密各分量', '封装轮次、票型和时间|附加公开随机标识nonce', '交给登记端校验并接收'],
   'issue': '新增边界实验表明，客户端正确生成独热向量不等于接收端能证明密文合法。两名恶意客户端分别提交[2,0]与[0,0]的加密向量，最终总票为[2,0]，仍满足总和等于两票。处理方法是保留总和检查作为有限检测，明确合法性证明尚未实现，不把它写成“所有非法票都能被发现”。',
   'extra': [('非法选票组合局限', '两个非独热向量仍可形成满足约束的汇总；需零知识证明')],
  },
@@ -92,6 +92,8 @@ def styles(doc):
         fmt.line_spacing = 1.5
         fmt.first_line_indent = Pt(24 if name == 'Report Body' else 0)
         fmt.widow_control = True
+        if name == 'Report Body':
+            fmt.keep_together = True
         if name in ('Report Title', 'Report H1', 'Report H2'):
             fmt.keep_with_next = True
             fmt.space_before = Pt(6)
@@ -105,6 +107,8 @@ def styles(doc):
             fmt.space_after = Pt(6)
         if name == 'Report Code':
             fmt.line_spacing = 1
+            fmt.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            fmt.keep_together = True
             fmt.left_indent = Pt(12)
             s.font.name = 'Consolas'
             s.element.get_or_add_rPr().get_or_add_rFonts().set(qn('w:eastAsia'), '新宋体')
@@ -130,7 +134,7 @@ def flowchart(role, output):
             draw.polygon([(x,y-95),(x+275,y),(x,y+95),(x-275,y)],outline='black',width=3)
         else:
             draw.rounded_rectangle((x-285,y-65,x+285,y+65),radius=13,outline='black',width=3)
-        parts = [label] if len(label)<=15 else [label[:15],label[15:]]
+        parts = label.split('|') if '|' in label else ([label] if len(label)<=15 else [label[:15],label[15:]])
         for j,line in enumerate(parts):
             box=draw.textbbox((0,0),line,font=f)
             draw.text((x-(box[2]-box[0])/2,y-24+(j-(len(parts)-1)/2)*42),line,font=f,fill='black')
@@ -166,10 +170,26 @@ def revise(role):
         for p in doc.tables[0].rows[row_id].cells[1].paragraphs:
             for run in p.runs: font(run,15)
 
-    body = doc.paragraphs[18:]
+    # A small dedicated break paragraph avoids spilling an empty cover line onto
+    # the evaluation sheet after its text fields are enlarged to template size.
+    from docx.text.paragraph import Paragraph
+    between=[]
+    el=doc.tables[0]._tbl.getnext()
+    while el is not None and el is not doc.tables[1]._tbl:
+        between.append(el);el=el.getnext()
+    for el in between:el.getparent().remove(el)
+    el=OxmlElement('w:p');doc.tables[1]._tbl.addprevious(el)
+    pagebreak=Paragraph(el,doc._body)
+    pagebreak.paragraph_format.page_break_before=True
+    pagebreak.paragraph_format.space_after=Pt(0)
+    pagebreak.paragraph_format.space_before=Pt(0)
+    pagebreak.paragraph_format.line_spacing=Pt(1)
+    pagebreak.add_run().font.size=Pt(1)
+
+    start=next(i for i,p in enumerate(doc.paragraphs) if p.text=='基于同态加密的隐私保护投票系统')
+    body = doc.paragraphs[start:]
     for p in body:
         text=p.text
-        old_break=p.paragraph_format.page_break_before
         is_picture=bool(p._element.xpath('.//w:drawing'))
         is_code=any(r.font.name=='Consolas' for r in p.runs)
         if re.match(r'^[一二三四五六] ', text):
@@ -187,7 +207,7 @@ def revise(role):
         pp=p._element.get_or_add_pPr()
         for child in list(pp):
             if child.tag != qn('w:pStyle'): pp.remove(child)
-        if old_break:p.paragraph_format.page_break_before=True
+        if name=='Report Title':p.paragraph_format.page_break_before=True
         if is_picture:
             p.paragraph_format.first_line_indent=Pt(0)
             p.paragraph_format.keep_with_next=True
@@ -226,8 +246,6 @@ def revise(role):
     # Replace prose arrows with an actual decision/exception flowchart.
     flow=find('3.4 模块处理流程')
     replace(flow,'3.4 模块程序流程图设计')
-    flow.paragraph_format.page_break_before=True
-    old=doc.paragraphs[doc.paragraphs.index(flow)+1] if False else None
     nxt=flow._p.getnext()
     if nxt is not None and nxt.tag==qn('w:p'):
         from docx.text.paragraph import Paragraph
@@ -275,10 +293,18 @@ def revise(role):
             if i==0:
                 repeat=OxmlElement('w:tblHeader');row._tr.get_or_add_trPr().append(repeat)
             for cell in row.cells:
+                borders=cell._tc.get_or_add_tcPr().find(qn('w:tcBorders'))
+                if borders is None:
+                    borders=OxmlElement('w:tcBorders');cell._tc.get_or_add_tcPr().append(borders)
+                for edge in ('top','left','bottom','right'):
+                    line=OxmlElement('w:'+edge);line.set(qn('w:val'),'single')
+                    line.set(qn('w:sz'),'4');line.set(qn('w:color'),'D9D9D9');borders.append(line)
                 for p in cell.paragraphs:
                     p.paragraph_format.line_spacing=1.2
-                    p.paragraph_format.space_after=Pt(3)
-                    p.paragraph_format.space_before=Pt(3)
+                    if head in ('成员','人数'):
+                        p.paragraph_format.keep_with_next=(i < len(table.rows)-1)
+                    p.paragraph_format.space_after=Pt(2)
+                    p.paragraph_format.space_before=Pt(2)
                     for run in p.runs:font(run,10.5,i==0)
         if head in ('实验项','人数'):
             from docx.text.paragraph import Paragraph
@@ -288,7 +314,40 @@ def revise(role):
             cap.paragraph_format.keep_with_next=True
 
     # Correct report code line wrapping; the executable source remains authoritative.
+    if role == 'A':
+        block = [p for p in doc.paragraphs if p.style.name == 'Report Code']
+        snippet = """    if type(choice) is not int or not 0 <= choice < len(config['options']):
+        raise VoteError('必须且只能选择一个有效选项')
+    if voter_id not in config['roster']:
+        raise VoteError('投票者ID不在授权名单内')
+    pub = public_key(config)
+    encrypted = [
+        str(pub.raw_encrypt(int(i == choice)))
+        for i in range(len(config['options']))
+    ]
+    return {
+        'version': 1, 'election_id': config['election_id'],
+        'voter_id': voter_id, 'ballot_type': 'single_choice',
+        'timestamp': now(), 'nonce': uuid.uuid4().hex,
+        'ciphertexts': encrypted,
+    }"""
+        replace(block[0], snippet)
+        for p in block[1:]:p._element.getparent().remove(p._element)
     for p in doc.paragraphs:
+        if p.text.startswith('以下片段摘自'):
+            p.paragraph_format.keep_with_next=True
+        if p.text.startswith('['):
+            p.alignment=WD_ALIGN_PARAGRAPH.LEFT
+            p.paragraph_format.first_line_indent=Pt(0)
+            p.paragraph_format.line_spacing=1.2
+            for r in p.runs:font(r,10.5)
+        if any(token in p.text for token in ('g^m','g^λ','c^λ','r^n')):
+            chunks=re.split(r'([gcr]\^[mλn])',p.text)
+            p.clear()
+            for chunk in chunks:
+                if re.fullmatch(r'[gcr]\^[mλn]',chunk):
+                    p.add_run(chunk[0]);p.add_run(chunk[2]).font.superscript=True
+                else:p.add_run(chunk)
         if p.style.name=='Report Code':
             if 'encrypted = [str(pub.raw_encrypt' in p.text:
                 replace(p,"    encrypted = [\n        str(pub.raw_encrypt(int(i == choice)))\n        for i in range(len(config['options']))\n    ]")
@@ -302,7 +361,6 @@ def revise(role):
     field=OxmlElement('w:fldSimple');field.set(qn('w:instr'),'PAGE');footer._p.append(field)
     footer.add_run(' 页')
     for r in footer.runs:font(r,9)
-    update=OxmlElement('w:updateFields');update.set(qn('w:val'),'true');doc.settings.element.append(update)
     doc.save(path)
 
     # Replace only the pre-existing UI screenshot part, preserving the school logo.
@@ -311,6 +369,11 @@ def revise(role):
         media=[x for x in z.namelist() if x.startswith('word/media/') and x.lower().endswith('.png')]
         screenshot=max(media,key=lambda x:len(z.read(x)))
     with ZipFile(path) as z: parts={x:z.read(x) for x in z.namelist()}
+    editable={'word/document.xml','word/styles.xml','word/footer1.xml',
+              'word/_rels/document.xml.rels','[Content_Types].xml',screenshot}
+    with ZipFile(io.BytesIO(original)) as z:
+        for name in z.namelist():
+            if name not in editable:parts[name]=z.read(name)
     parts[screenshot]=photo.read_bytes()
     with ZipFile(path,'w',ZIP_DEFLATED) as z:
         for name,data in parts.items():z.writestr(name,data)
